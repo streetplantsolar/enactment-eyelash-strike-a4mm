@@ -2,5 +2,6 @@ dash==2.9.3
 dash_bootstrap_components==1.4.1
 pandas==0.25.3
 plotly==5.14.1
+plotly.express==0.4.1
 gunicorn
 dash-tools
