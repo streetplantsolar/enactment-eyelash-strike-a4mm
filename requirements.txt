@@ -11,3 +11,5 @@ gunicorn==20.1.0
 dash-tools==1.11.1
 packaging==21.0
 xlrd==1.2.0
+pvlib==0.8.0
+numpy==1.18.5
