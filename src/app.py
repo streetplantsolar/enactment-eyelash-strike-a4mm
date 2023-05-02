@@ -1,4 +1,3 @@
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import dash
@@ -7,6 +6,8 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
+import numpy as np
+import pvlib
 
 
 ### Build the app
@@ -15,11 +16,25 @@ server = app.server
 
 
 ###Module things
-df_names = pd.read_excel('modules.xlsx')
-df_voltage = pd.read_excel('modules.xlsx', sheet_name='Voltage')
-df_current = pd.read_excel('modules.xlsx', sheet_name='Current')
-dropdown_mods = dcc.Dropdown(options=df_names.iloc[:,0],
+mod_db = pd.read_csv('module_db.csv')
+manufacturer = mod_db.loc[:,'Manufacturer'].unique()
+dropdown_manufacturer = dcc.Dropdown(options=manufacturer,
                         clearable=False)
+dropdown_mods = dcc.Dropdown(options=mod_db.loc[:,'Model'])
+
+# set STC reference conditions
+E0 = 1000  # W/m^2
+T0 = 25  # degC
+
+# set the IEC61853 test matrix
+E_IEC61853 = [1000]  # irradiances [W/m^2]
+T_IEC61853 = [25]  # temperatures [degC]
+
+# create a meshgrid of temperatures and irradiances
+# for all 28 combinations in the test matrix
+IEC61853 = np.meshgrid(T_IEC61853, E_IEC61853)
+temp_cell = 25
+effective_irradiance = 1000
 
 
 ###Parameter things
@@ -30,12 +45,6 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
 ###Analyze things
 dropdown_analyze = dcc.Dropdown(options=['Degrade', 'Scale'],
                         clearable=True)
-
-df_IV=pd.DataFrame({            #initializes df as first mod
-    'Voltage': df_voltage.iloc[:,0],
-    'Current': df_current.iloc[:,0]
-    })
-
 
 app.layout = dbc.Container(
     [
@@ -56,7 +65,10 @@ app.layout = dbc.Container(
                 dbc.Collapse(
                     dbc.Card(
                         dbc.CardBody(
-                            dropdown_mods,
+                            [
+                                html.H4("Select Model"),
+                                dropdown_mods,
+                            ]
                         )
                     ),
                     id="module_collapse",
@@ -99,7 +111,8 @@ app.layout = dbc.Container(
     ],
     fluid=True
 )
-
+     
+    
 ### Callback to make parameters menu expand
 @app.callback(
     Output("parameter_collapse", "is_open"),
@@ -135,58 +148,84 @@ def toggle_shape_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
-
-###############
-#mygraph = dcc.Graph(figure={})
-
 @app.callback(
     Output("display", component_property='figure'),
+    #Input(dropdown_manufacturer, 'value'),
     Input(dropdown_mods, 'value'),
     Input(dropdown_parameters, 'value')
     #Input(dropdown_analyze, 'value')
 )
 
 def update_graph(selected_mod, selected_option):
-    df=pd.DataFrame({            
-        'Voltage': df_voltage.loc[:,str(selected_mod)],
-        'Current': df_current.loc[:,str(selected_mod)]
-        })
-    #fig = px.line(df, x="Voltage", y="Current")
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(
-        go.Scatter(
-            x=df.loc[:,"Voltage"],
-            y=df.loc[:,"Current"],
-            mode="lines",
-            line_color="deepskyblue",
-            showlegend=False)
+    df=mod_db.loc[mod_db['Model'].str.contains(selected_mod)]
+    
+    cecparams = pvlib.pvsystem.calcparams_cec(
+        effective_irradiance=effective_irradiance,
+        temp_cell=temp_cell,
+        alpha_sc=df.alpha_sc,
+        a_ref=df.a_ref,
+        I_L_ref=df.I_L_ref,
+        I_o_ref=df.I_o_ref,
+        R_sh_ref=df.R_sh_ref,
+        R_s=df.R_s,
+        Adjust=df.Adjust,
+        EgRef=1.121,
+        dEgdT=-0.0002677
         )
+    IL, I0, Rs, Rsh, nNsVth = cecparams
+    
+    curve_info = pvlib.pvsystem.singlediode(
+        photocurrent=IL,
+        saturation_current=I0,
+        resistance_series=Rs,
+        resistance_shunt=Rsh,
+        nNsVth=nNsVth,
+        ivcurve_pnts=101,
+        method='lambertw')                    
+
+    df_V = pd.DataFrame(curve_info['v'].transpose(), columns=['Voltage'])
+    df_I = pd.DataFrame(curve_info['i'].transpose(), columns=['Current'])
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    fig.add_trace(
+                go.Scatter(
+                    x=df_V.loc[:,"Voltage"],
+                    y=df_I.loc[:,"Current"],
+                    mode="lines",
+                    line_color="deepskyblue",
+                    showlegend=False,
+                    )
+                )   
     fig.update_xaxes(title_text="Voltage")
     fig.update_yaxes(title_text="Current", secondary_y=False)
-    df['Power'] = df['Voltage'] * df['Current']
-    Pmp = df.loc[df['Power']==df['Power'].max()]
-    
-    if selected_option == "Power Curve":
-        fig.add_trace(
-            go.Scatter(
-                x=df.loc[:,"Voltage"],
-                y=df.loc[:,"Power"],
-                mode="lines",
-                line_color="goldenrod",
-                showlegend=False),
-            secondary_y=True
-            )
-        fig.update_yaxes(title_text="Power", secondary_y=True)
     
     if selected_option == "Pmp":
+        df_Vmp = pd.DataFrame(curve_info['v_mp'].transpose(), columns=['Vmp'])
+        df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp'])
+     
         fig.add_trace(
             go.Scatter(
-                x=Pmp.loc[:,"Voltage"],
-                y=Pmp.loc[:,"Current"],
+                x=df_Vmp.loc[:,"Vmp"],
+                y=df_Imp.loc[:,"Imp"],
                 line_color="red",
                 showlegend=False),
             secondary_y=False
             )
+    
+    if selected_option == "Power Curve":
+        df_V['Power'] = df_V['Voltage'] * df_I['Current']
+        fig.add_trace(
+             go.Scatter(
+                 x=df_V.loc[:,"Voltage"],
+                 y=df_V.loc[:,"Power"],
+                 mode="lines",
+                 line_color="goldenrod",
+                 showlegend=False),
+             secondary_y=True
+             )
+        fig.update_yaxes(title_text="Power", secondary_y=True)
+
     return fig
 
 if __name__=='__main__':
