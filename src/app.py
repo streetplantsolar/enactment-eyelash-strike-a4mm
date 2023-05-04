@@ -14,6 +14,14 @@ import pvlib
 app = Dash(__name__, external_stylesheets=[dbc.themes.MINTY], title="IVCurves.com")
 server = app.server
 
+# =============================================================================
+# dash.register_page(__name__,
+#                    path='/',
+#                    name='Home',
+#                    title='IVCurves.com',
+#                    description='PV solar IV curve database and analysis tool. Access and analyze nearly 17,000 modules from 200 manufacturers.'
+#                    )
+# =============================================================================
 
 ###Module things
 mod_db = pd.read_csv('module_db.csv')
@@ -37,7 +45,7 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
 ###Analyze things
-dropdown_analyze = dcc.Dropdown(options=['Degrade', 'Scale'],
+dropdown_analyze = dcc.Dropdown(options=["Coming Soon:", "Irradiance & Temp Scaling", "Degradation"],
                         clearable=True)
 
 app.layout = dbc.Container(
@@ -102,9 +110,10 @@ app.layout = dbc.Container(
                 html.Hr(),
             ], width=3),
             dbc.Col([
-                dcc.Graph(id='display', style={'height': '90vh'}),
+                dcc.Graph(id='display', style={'height': '80vh'}),
             ], width=9, align="start")
         ]),
+        html.Hr(),
     ],
     fluid=True
 )
@@ -169,7 +178,8 @@ def toggle_shape_collapse(n_clicks, is_open):
 )
 
 def update_graph(selected_mod, selected_option):
-    df=mod_db.loc[mod_db['Model'].str.contains(selected_mod)]
+    df = mod_db[mod_db['Model'].str.match(selected_mod)]
+    df=df.iloc[0,:]
     
     cecparams = pvlib.pvsystem.calcparams_cec(
         effective_irradiance=effective_irradiance,
