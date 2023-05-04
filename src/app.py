@@ -11,20 +11,15 @@ import pvlib
 
 
 ### Build the app
-app = Dash(__name__, external_stylesheets=[dbc.themes.SOLAR], title="IVCurves.com")
+app = Dash(__name__, external_stylesheets=[dbc.themes.MINTY], title="IVCurves.com")
 server = app.server
 
 
 ###Module things
 mod_db = pd.read_csv('module_db.csv')
-manufacturer = mod_db.loc[:,'Manufacturer'].unique()
-dropdown_manufacturer = dcc.Dropdown(options=manufacturer,
+dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),
                         clearable=False)
-dropdown_mods = dcc.Dropdown(options=mod_db.loc[:,'Model'])
-
-# set STC reference conditions
-E0 = 1000  # W/m^2
-T0 = 25  # degC
+dropdown_mod = dcc.Dropdown(options=[])
 
 # set the IEC61853 test matrix
 E_IEC61853 = [1000]  # irradiances [W/m^2]
@@ -40,7 +35,6 @@ effective_irradiance = 1000
 ###Parameter things
 dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
-
 
 ###Analyze things
 dropdown_analyze = dcc.Dropdown(options=['Degrade', 'Scale'],
@@ -66,8 +60,11 @@ app.layout = dbc.Container(
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.H4("Select Model"),
-                                dropdown_mods,
+                                html.H5('Manufacturer:'),
+                                dropdown_manuf,
+                                html.Hr(),
+                                html.H5("Model:"),
+                                dropdown_mod,
                             ]
                         )
                     ),
@@ -111,8 +108,36 @@ app.layout = dbc.Container(
     ],
     fluid=True
 )
-     
-    
+                             
+                             
+   ### Callback to update Model dropdown based on Manufacturer                          
+@app.callback(
+    Output(dropdown_mod,'options'),
+    Input(dropdown_manuf, 'value')
+    )
+def update_dropdown_mod(selected_manuf):
+    dff=mod_db.loc[mod_db['Manufacturer'].str.contains(selected_manuf)]
+    mods_of_manuf = dff.Model                   
+    return mods_of_manuf
+
+@app.callback(
+    Output(dropdown_mod,'value'),
+    Input(dropdown_mod, 'options')
+    )
+def update_mod_value(mods_of_manuf):
+    return mods_of_manuf[0]['value']
+ 
+### Callback to make module select menu expand
+@app.callback(
+    Output("module_collapse", "is_open"),
+    [Input("module_button", "n_clicks")],
+    [State("module_collapse", "is_open")]
+)
+def toggle_shape_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open                             
+                                                    
 ### Callback to make parameters menu expand
 @app.callback(
     Output("parameter_collapse", "is_open"),
@@ -123,19 +148,6 @@ def toggle_shape_collapse(n_clicks, is_open):
     if n_clicks:
         return not is_open
     return is_open
-
-
-### Callback to make module select menu expand
-@app.callback(
-    Output("module_collapse", "is_open"),
-    [Input("module_button", "n_clicks")],
-    [State("module_collapse", "is_open")]
-)
-def toggle_shape_collapse(n_clicks, is_open):
-    if n_clicks:
-        return not is_open
-    return is_open
-
 
 ### Callback to make analyze menu expand
 @app.callback(
@@ -150,8 +162,8 @@ def toggle_shape_collapse(n_clicks, is_open):
 
 @app.callback(
     Output("display", component_property='figure'),
-    #Input(dropdown_manufacturer, 'value'),
-    Input(dropdown_mods, 'value'),
+    #Input(dropdown_manuf, 'value'),
+    Input(dropdown_mod, 'value'),
     Input(dropdown_parameters, 'value')
     #Input(dropdown_analyze, 'value')
 )
@@ -229,4 +241,4 @@ def update_graph(selected_mod, selected_option):
     return fig
 
 if __name__=='__main__':
-    app.run_server(debug=False)
+    app.run_server(port=8053, debug=False)
