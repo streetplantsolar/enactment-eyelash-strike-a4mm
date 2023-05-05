@@ -39,71 +39,71 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
 ###Analyze things
-#dropdown_analyze = dcc.Dropdown(options=["Coming Soon:", "Irradiance & Temp Scaling", "Degradation"],
-#                        clearable=True)
 irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 
 ### Contact Form ###
-email_input = dbc.Row([
-        dbc.Label("Email"
-                , html_for="example-email-row"
-                , width=2),
-        dbc.Col(dbc.Input(
-                type="email"
-                , id="example-email-row"
-                , placeholder="Email"
-            ),width=10,
-        )],className="mb-3"
-)
-
-user_input = dbc.Row([
-        dbc.Label("Name", html_for="example-name-row", width=2),
-        dbc.Col(
-            dbc.Input(
-                type="text"
-                , id="example-name-row"
-                , placeholder="Name"
-                , maxLength = 80
-            ),width=10
-        )], className="mb-3"
-)
-
-message = dbc.Row([
-        dbc.Label("Message", html_for="example-message-row", width=2)
-        ,dbc.Col(
-            dbc.Textarea(id = "example-message-row"
-                , className="mb-3"
-                , placeholder="Message"
-                , required = True)
-            , width=10)
-        ], className="mb-3")
-
-def contact_form():
-    markdown = ''' # We'd love to hear from you! '''   
-    form = html.Div([ dbc.Container([
-            dcc.Markdown(markdown)
-            , html.Br()
-            , dbc.Card(
-                dbc.CardBody([
-                     dbc.Form([email_input
-                        , user_input
-                        , message])
-                ,html.Div(id = 'div-button', children = [
-                    dbc.Button('Submit'
-                    , color = 'primary'
-                    , id='button-submit'
-                    , n_clicks=0)
-                ]) #end div
-                ])#end cardbody
-            )#end card
-            , html.Br()
-            , html.Br()
-        ])
-        ])
-    return form
-
-
+# =============================================================================
+# email_input = dbc.Row([
+#         dbc.Label("Email"
+#                 , html_for="example-email-row"
+#                 , width=2),
+#         dbc.Col(dbc.Input(
+#                 type="email"
+#                 , id="example-email-row"
+#                 , placeholder="Email"
+#             ),width=10,
+#         )],className="mb-3"
+# )
+# 
+# user_input = dbc.Row([
+#         dbc.Label("Name", html_for="example-name-row", width=2),
+#         dbc.Col(
+#             dbc.Input(
+#                 type="text"
+#                 , id="example-name-row"
+#                 , placeholder="Name"
+#                 , maxLength = 80
+#             ),width=10
+#         )], className="mb-3"
+# )
+# 
+# message = dbc.Row([
+#         dbc.Label("Message", html_for="example-message-row", width=2)
+#         ,dbc.Col(
+#             dbc.Textarea(id = "example-message-row"
+#                 , className="mb-3"
+#                 , placeholder="Message"
+#                 , required = True)
+#             , width=10)
+#         ], className="mb-3")
+# 
+# def contact_form():
+#     markdown = ''' # We'd love to hear from you! '''   
+#     form = html.Div([ dbc.Container([
+#             dcc.Markdown(markdown)
+#             , html.Br()
+#             , dbc.Card(
+#                 dbc.CardBody([
+#                      dbc.Form([email_input
+#                         , user_input
+#                         , message])
+#                 ,html.Div(id = 'div-button', children = [
+#                     dbc.Button('Submit'
+#                     , color = 'primary'
+#                     , id='button-submit'
+#                     , n_clicks=0)
+#                 ]) #end div
+#                 ])#end cardbody
+#             )#end card
+#             , html.Br()
+#             , html.Br()
+#         ])
+#         ])
+#     return form
+# 
+# 
+# =============================================================================
 app.layout = dbc.Container(
     [
         dbc.Row([
@@ -246,19 +246,21 @@ def toggle_shape_collapse(n_clicks, is_open):
      ,Input("example-name-row", 'value')
      ,Input("example-message-row", 'value')
     )
-def submit_message(n, email, name, message):
-    port = 465  # For SSL
-    sender_email = email
-    receiver_email = 'streetplantsolar@gmail.com'
-    context = ssl.create_default_context()       
-    if n > 0:
-        with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-            server.login("streetplantsolar@gmail.com", 'F00rpkcahSPS!')
-            server.sendmail(sender_email, receiver_email, message)
-            server.quit()
-        return [html.P("Message Sent")]
-    else:
-        return[dbc.Button('Submit', color = 'primary', id='button-submit', n_clicks=0)]
+# =============================================================================
+# def submit_message(n, email, name, message):
+#     port = 465  # For SSL
+#     sender_email = email
+#     receiver_email = 'streetplantsolar@gmail.com'
+#     context = ssl.create_default_context()       
+#     if n > 0:
+#         with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+#             server.login("streetplantsolar@gmail.com", 'F00rpkcahSPS!')
+#             server.sendmail(sender_email, receiver_email, message)
+#             server.quit()
+#         return [html.P("Message Sent")]
+#     else:
+#         return[dbc.Button('Submit', color = 'primary', id='button-submit', n_clicks=0)]
+# =============================================================================
 
 def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
