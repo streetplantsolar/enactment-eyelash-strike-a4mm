@@ -29,13 +29,6 @@ dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),
                         clearable=False)
 dropdown_mod = dcc.Dropdown(options=[])
 
-# set the IEC61853 test matrix
-E_IEC61853 = [1000]  # irradiances [W/m^2]
-T_IEC61853 = [25]  # temperatures [degC]
-
-# create a meshgrid of temperatures and irradiances
-# for all 28 combinations in the test matrix
-IEC61853 = np.meshgrid(T_IEC61853, E_IEC61853)
 temp_cell = 25
 effective_irradiance = 1000
 
@@ -45,8 +38,10 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
 ###Analyze things
-dropdown_analyze = dcc.Dropdown(options=["Coming Soon:", "Irradiance & Temp Scaling", "Degradation"],
-                        clearable=True)
+#dropdown_analyze = dcc.Dropdown(options=["Coming Soon:", "Irradiance & Temp Scaling", "Degradation"],
+#                        clearable=True)
+irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
+temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 
 app.layout = dbc.Container(
     [
@@ -101,7 +96,13 @@ app.layout = dbc.Container(
                 dbc.Collapse(
                     dbc.Card(
                         dbc.CardBody(
-                            dropdown_analyze,
+                            [
+                                html.H6("Irradiance (W/m2)"),
+                                irradiance_slider,
+                                html.Hr(),
+                                html.H6("Temperature (°C)"),
+                                temperature_slider,
+                            ]
                         )
                     ),
                     id="analyze_collapse",
@@ -171,19 +172,19 @@ def toggle_shape_collapse(n_clicks, is_open):
 
 @app.callback(
     Output("display", component_property='figure'),
-    #Input(dropdown_manuf, 'value'),
     Input(dropdown_mod, 'value'),
-    Input(dropdown_parameters, 'value')
-    #Input(dropdown_analyze, 'value')
+    Input(dropdown_parameters, 'value'),
+    Input(irradiance_slider, 'value'),
+    Input(temperature_slider, 'value')
 )
 
-def update_graph(selected_mod, selected_option):
+def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
     df=df.iloc[0,:]
     
     cecparams = pvlib.pvsystem.calcparams_cec(
-        effective_irradiance=effective_irradiance,
-        temp_cell=temp_cell,
+        effective_irradiance=selected_irradiance,
+        temp_cell=selected_temperature,
         alpha_sc=df.alpha_sc,
         a_ref=df.a_ref,
         I_L_ref=df.I_L_ref,
@@ -197,11 +198,11 @@ def update_graph(selected_mod, selected_option):
     IL, I0, Rs, Rsh, nNsVth = cecparams
     
     curve_info = pvlib.pvsystem.singlediode(
-        photocurrent=IL,
-        saturation_current=I0,
+        photocurrent=IL.flatten(),
+        saturation_current=I0.flatten(),
         resistance_series=Rs,
-        resistance_shunt=Rsh,
-        nNsVth=nNsVth,
+        resistance_shunt=Rsh.flatten(),
+        nNsVth=nNsVth.flatten(),
         ivcurve_pnts=101,
         method='lambertw')                    
 
