@@ -61,10 +61,10 @@ app.layout = dbc.Container(
                     dbc.Card(
                         dbc.CardBody(
                             [
-                                html.H5('Manufacturer:'),
+                                html.H6('Manufacturer:'),
                                 dropdown_manuf,
                                 html.Hr(),
-                                html.H5("Model:"),
+                                html.H6("Model:"),
                                 dropdown_mod,
                             ]
                         )
@@ -113,17 +113,35 @@ app.layout = dbc.Container(
             ], width=9, align="start")
         ]),
         html.Hr(),
-        html.Iframe(
-            src='https://docs.google.com/forms/d/e/1FAIpQLSe9bizwPKrj5Oaeehhruycgtr7MFDlNSyT3vLJupQnv89QD4g/viewform?embedded=true',
-            width='1000px',
-            height='800px',
-        )
+        dbc.Row([
+            dbc.Col([
+                dbc.Button(
+                    "Contact Us",
+                    id="contact_button"
+                ),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.Iframe(
+                                    src='https://docs.google.com/forms/d/e/1FAIpQLSe9bizwPKrj5Oaeehhruycgtr7MFDlNSyT3vLJupQnv89QD4g/viewform?embedded=true',
+                                    width='1000px',
+                                    height='800px',
+                                    )
+                            ]
+                        )
+                    ),
+                    id="contact_collapse",
+                    is_open=False
+                ),
+            ])
+        ])
+        
     ],
     fluid=True
 )
-                             
-                         
-   ### Callback to update Model dropdown based on Manufacturer                          
+                                                   
+### Callback to update Model dropdown based on Manufacturer                          
 @app.callback(
     Output(dropdown_mod,'options'),
     Input(dropdown_manuf, 'value')
@@ -173,6 +191,17 @@ def toggle_shape_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
+### Callback to make contact menu expand
+@app.callback(
+    Output("contact_collapse", "is_open"),
+    [Input("contact_button", "n_clicks")],
+    [State("contact_collapse", "is_open")]
+)
+def toggle_shape_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
 @app.callback(
     Output("display", component_property='figure'),
     Input(dropdown_mod, 'value'),
@@ -181,12 +210,6 @@ def toggle_shape_collapse(n_clicks, is_open):
     Input(temperature_slider, 'value')
 )
 
-@app.callback(Output('div-button', 'children'),
-     Input("button-submit", 'n_clicks')
-     ,Input("example-email-row", 'value')
-     ,Input("example-name-row", 'value')
-     ,Input("example-message-row", 'value')
-    )
 
 def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
@@ -226,7 +249,7 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
                     x=df_V.loc[:,"Voltage"],
                     y=df_I.loc[:,"Current"],
                     mode="lines",
-                    line_color="deepskyblue",
+                    line_color="#78c2ad",
                     showlegend=False,
                     )
                 )   
@@ -241,7 +264,7 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
             go.Scatter(
                 x=df_Vmp.loc[:,"Vmp"],
                 y=df_Imp.loc[:,"Imp"],
-                line_color="red",
+                line_color="#007bff",
                 showlegend=False),
             secondary_y=False
             )
@@ -253,7 +276,7 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
                  x=df_V.loc[:,"Voltage"],
                  y=df_V.loc[:,"Power"],
                  mode="lines",
-                 line_color="goldenrod",
+                 line_color="#f3969a",
                  showlegend=False),
              secondary_y=True
              )
