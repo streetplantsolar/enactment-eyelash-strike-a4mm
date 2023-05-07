@@ -166,7 +166,11 @@ app.layout = dbc.Container(
                     is_open=False
                 ),
             ])
-        ])
+        ]),
+        html.Hr(),
+        dcc.Markdown("""
+          © 2023 StreetPlant Solar. All Rights Reserved           
+                     """)   
         
     ],
     fluid=True
