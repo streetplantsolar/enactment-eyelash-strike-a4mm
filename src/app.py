@@ -40,6 +40,7 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
 ###Analyze things
 irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
+string_input = dbc.Input(type="number", value=1, min=1, max=50, step=1)
 
 app.layout = dbc.Container(
     [
@@ -100,6 +101,9 @@ app.layout = dbc.Container(
                                 html.Hr(),
                                 html.H6("Temperature (°C)"),
                                 temperature_slider,
+                                html.Hr(),
+                                html.H6("Modules per String"),
+                                string_input
                             ]
                         )
                     ),
@@ -207,11 +211,12 @@ def toggle_shape_collapse(n_clicks, is_open):
     Input(dropdown_mod, 'value'),
     Input(dropdown_parameters, 'value'),
     Input(irradiance_slider, 'value'),
-    Input(temperature_slider, 'value')
+    Input(temperature_slider, 'value'),
+    Input(string_input, 'value')
 )
 
 
-def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature):
+def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
     df=df.iloc[0,:]
     
@@ -240,8 +245,9 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         method='lambertw')                    
 
     df_V = pd.DataFrame(curve_info['v'].transpose(), columns=['Voltage'])
+    df_V *= mods_per_string
     df_I = pd.DataFrame(curve_info['i'].transpose(), columns=['Current'])
-    
+   
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(
@@ -258,6 +264,7 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
     
     if selected_option == "Pmp":
         df_Vmp = pd.DataFrame(curve_info['v_mp'].transpose(), columns=['Vmp'])
+        df_Vmp *= mods_per_string
         df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp'])
      
         fig.add_trace(
