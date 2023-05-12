@@ -43,8 +43,6 @@ app.index_string = """<!DOCTYPE html>
 
 # =============================================================================
 # dash.register_page(__name__,
-#                    path='/',
-#                    name='Home',
 #                    title='IVCurves.com',
 #                    description='PV solar IV curve database and analysis tool. Access and analyze nearly 17,000 modules from 200 manufacturers.'
 #                    )
@@ -64,10 +62,19 @@ effective_irradiance = 1000
 dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
-###Analyze things
+###Scale things
 irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 string_input = dbc.Input(type="number", value=1, min=1, max=50, step=1)
+
+###Compare things
+df_compare = pd.DataFrame(columns=['Voltage', 'Current'], index=range(10))
+compare_input = dash_table.DataTable(
+    id='compare-input',
+    columns = [{'name': col, 'id':col} for col in df_compare.columns],
+    data = df_compare.to_dict('records'),
+    editable=True,
+    )
 
 app.layout = dbc.Container(
     [
@@ -116,8 +123,8 @@ app.layout = dbc.Container(
                 ),
                 html.Hr(),
                 dbc.Button(
-                    "Analyze",
-                    id="analyze_button"
+                    "Scale",
+                    id="scale_button"
                 ),
                 dbc.Collapse(
                     dbc.Card(
@@ -134,10 +141,25 @@ app.layout = dbc.Container(
                             ]
                         )
                     ),
-                    id="analyze_collapse",
+                    id="scale_collapse",
                     is_open=False
                 ),
                 html.Hr(),
+                dbc.Button(
+                    "Plot your data",
+                    id="compare_button"
+                ),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                compare_input
+                            ]
+                        )
+                    ),
+                    id="compare_collapse",
+                    is_open=False
+                ),
             ], width=3),
             dbc.Col([
                 dcc.Graph(id='display', style={'height': '80vh'}),
@@ -169,7 +191,7 @@ app.layout = dbc.Container(
         ]),
         html.Hr(),
         dcc.Markdown("""
-          © 2023 StreetPlant Solar. All Rights Reserved           
+          © 2023 StreetPlant Solar. All Rights Reserved.           
                      """)   
         
     ],
@@ -215,11 +237,22 @@ def toggle_shape_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
-### Callback to make analyze menu expand
+### Callback to make scale menu expand
 @app.callback(
-    Output("analyze_collapse", "is_open"),
-    [Input("analyze_button", "n_clicks")],
-    [State("analyze_collapse", "is_open")]
+    Output("scale_collapse", "is_open"),
+    [Input("scale_button", "n_clicks")],
+    [State("scale_collapse", "is_open")]
+)
+def toggle_shape_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+### Callback to make scale menu expand
+@app.callback(
+    Output("compare_collapse", "is_open"),
+    [Input("compare_button", "n_clicks")],
+    [State("compare_collapse", "is_open")]
 )
 def toggle_shape_collapse(n_clicks, is_open):
     if n_clicks:
@@ -243,11 +276,12 @@ def toggle_shape_collapse(n_clicks, is_open):
     Input(dropdown_parameters, 'value'),
     Input(irradiance_slider, 'value'),
     Input(temperature_slider, 'value'),
-    Input(string_input, 'value')
+    Input(string_input, 'value'),
+    Input(compare_input,'data'),
 )
 
 
-def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string):
+def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string, data):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
     df=df.iloc[0,:]
     
@@ -265,7 +299,6 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         dEgdT=-0.0002677
         )
     IL, I0, Rs, Rsh, nNsVth = cecparams
-    
     curve_info = pvlib.pvsystem.singlediode(
         photocurrent=IL.flatten(),
         saturation_current=I0.flatten(),
@@ -275,16 +308,21 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         ivcurve_pnts=101,
         method='lambertw')                    
 
-    df_V = pd.DataFrame(curve_info['v'].transpose(), columns=['Voltage'])
-    df_V *= mods_per_string
-    df_I = pd.DataFrame(curve_info['i'].transpose(), columns=['Current'])
+    df = pd.DataFrame(curve_info['v'].transpose(), columns=['Voltage'])
+    df['Voltage'] = df['Voltage']*mods_per_string
+    df['Current'] = pd.DataFrame(curve_info['i'].transpose(), columns=['Current'])
+    df['Power'] = df['Voltage'] * df['Current']
+    df_Vmp = pd.DataFrame(curve_info['v_mp'].transpose(), columns=['Vmp'])
+    df_Vmp *= mods_per_string
+    df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp'])
    
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
     fig.add_trace(
                 go.Scatter(
-                    x=df_V.loc[:,"Voltage"],
-                    y=df_I.loc[:,"Current"],
+                    x=df.loc[:,"Voltage"],
+                    y=df.loc[:,"Current"],
+                    name="Modeled IV",
                     mode="lines",
                     line_color="#78c2ad",
                     showlegend=False,
@@ -292,34 +330,44 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
                 )   
     fig.update_xaxes(title_text="Voltage (V)")
     fig.update_yaxes(title_text="Current (A)", secondary_y=False)
+    fig.update_layout(hovermode="closest")
     
-    if selected_option == "Pmp":
-        df_Vmp = pd.DataFrame(curve_info['v_mp'].transpose(), columns=['Vmp'])
-        df_Vmp *= mods_per_string
-        df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp'])
-     
+    if selected_option == "Pmp":     
         fig.add_trace(
             go.Scatter(
                 x=df_Vmp.loc[:,"Vmp"],
                 y=df_Imp.loc[:,"Imp"],
+                name="Pmp",
                 line_color="#007bff",
                 showlegend=False),
             secondary_y=False
             )
     
     if selected_option == "Power Curve":
-        df_V['Power'] = df_V['Voltage'] * df_I['Current']
         fig.add_trace(
              go.Scatter(
-                 x=df_V.loc[:,"Voltage"],
-                 y=df_V.loc[:,"Power"],
+                 x=df.loc[:,"Voltage"],
+                 y=df.loc[:,"Power"],
+                 name="Modeled Power",
                  mode="lines",
                  line_color="#f3969a",
                  showlegend=False),
              secondary_y=True
              )
         fig.update_yaxes(title_text="Power (W)", secondary_y=True)
-
+    
+    df_compare = pd.DataFrame.from_dict(data)
+    
+    fig.add_trace(
+            go.Scatter(
+               x=df_compare.loc[:,"Voltage"],
+               y=df_compare.loc[:,"Current"],
+               name="Your module",
+               mode="lines",
+               line_color="#ffce67",
+               showlegend=False),
+            secondary_y=False
+            )
     return fig
 
 if __name__=='__main__':
