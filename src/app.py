@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import pvlib
 import datetime
-from datetime import date 
+from datetime import date
 import math
 
 
@@ -66,8 +66,8 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
 ###Scale things
-irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
-temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
+irradiance_slider = dcc.Slider(0,1200,5, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
+temperature_slider = dcc.Slider(-25,70,1, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 string_input = dbc.Input(type="number", value=1, min=1, max=50, step=1)
 
 ###Degrade things
@@ -100,7 +100,7 @@ app.layout = dbc.Container(
         dbc.Row([
             dbc.Col([
                 dbc.Button(
-                    "Select Module",
+                    "Select module",
                     id="module_button"
                 ),
                 dbc.Collapse(
@@ -112,35 +112,7 @@ app.layout = dbc.Container(
                                 html.Hr(),
                                 html.H6("Model:"),
                                 dropdown_mod,
-                            ]
-                        )
-                    ),
-                    id="module_collapse",
-                    is_open=False
-                ),
-                html.Hr(),
-                dbc.Button(
-                    "Add Parameters",
-                    id="parameter_button"
-                ),
-                dbc.Collapse(
-                    dbc.Card(
-                        dbc.CardBody(
-                            dropdown_parameters,
-                        )
-                    ),
-                    id="parameter_collapse",
-                    is_open=False
-                    ),
-                html.Hr(),
-                dbc.Button(
-                    "Scale",
-                    id="scale_button"
-                ),
-                dbc.Collapse(
-                    dbc.Card(
-                        dbc.CardBody(
-                            [
+                                html.Hr(),
                                 html.H6("Irradiance (W/m2)"),
                                 irradiance_slider,
                                 html.Hr(),
@@ -152,9 +124,23 @@ app.layout = dbc.Container(
                             ]
                         )
                     ),
-                    id="scale_collapse",
+                    id="module_collapse",
                     is_open=False
                 ),
+                html.Hr(),
+                dbc.Button(
+                    "Add parameters",
+                    id="parameter_button"
+                ),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody(
+                            dropdown_parameters,
+                        )
+                    ),
+                    id="parameter_collapse",
+                    is_open=False
+                    ),
                 html.Hr(),
                 dbc.Button(
                     "Degrade",
@@ -284,16 +270,6 @@ def toggle_shape_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
-### Callback to make scale menu expand
-@app.callback(
-    Output("scale_collapse", "is_open"),
-    [Input("scale_button", "n_clicks")],
-    [State("scale_collapse", "is_open")]
-)
-def toggle_shape_collapse(n_clicks, is_open):
-    if n_clicks:
-        return not is_open
-    return is_open
 
 ### Callback to make degrade menu expand
 @app.callback(
