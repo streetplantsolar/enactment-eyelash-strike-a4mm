@@ -8,6 +8,9 @@ import dash_html_components as html
 import pandas as pd
 import numpy as np
 import pvlib
+import datetime
+from datetime import date
+import math
 
 
 ### Build the app
@@ -67,6 +70,14 @@ irradiance_slider = dcc.Slider(0,1200,50, value=1000, marks=None,tooltip={"place
 temperature_slider = dcc.Slider(-25,70,5, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
 string_input = dbc.Input(type="number", value=1, min=1, max=50, step=1)
 
+###Degrade things
+today = datetime.date.today()
+degradation_date_picker = dcc.DatePickerRange(id='degradation-date-range', 
+                                             start_date=date(today.year, today.month, today.day), clearable=True,
+                                             end_date=date(today.year, today.month, today.day)
+                                             )
+degradation_input = dbc.Input(type="number", value=0.5, min=0, max=100, step=0.01)
+
 ###Compare things
 df_compare = pd.DataFrame(columns=['Voltage', 'Current'], index=range(10))
 compare_input = dash_table.DataTable(
@@ -120,7 +131,7 @@ app.layout = dbc.Container(
                     ),
                     id="parameter_collapse",
                     is_open=False
-                ),
+                    ),
                 html.Hr(),
                 dbc.Button(
                     "Scale",
@@ -142,6 +153,26 @@ app.layout = dbc.Container(
                         )
                     ),
                     id="scale_collapse",
+                    is_open=False
+                ),
+                html.Hr(),
+                dbc.Button(
+                    "Degrade",
+                    id="degrade_button"
+                ),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody(
+                            [
+                                html.H6("Install Date --> Measurement Date"),
+                                degradation_date_picker,
+                                html.Hr(),
+                                html.H6("Expected Degradation (%/year):"),
+                                degradation_input
+                            ]
+                        )
+                    ),
+                    id="degrade_collapse",
                     is_open=False
                 ),
                 html.Hr(),
@@ -168,6 +199,21 @@ app.layout = dbc.Container(
         html.Hr(),
         dbc.Row([
             dbc.Col([
+# =============================================================================
+#                 dbc.Button(
+#                     "Q&A",
+#                     id="QA_button"
+#                 ),
+#                 dbc.Collapse(
+#                     dbc.Card(
+#                         dbc.CardBody(
+#                             
+#                         )
+#                     ),
+#                     id="QA_collapse",
+#                     is_open=False
+#                     ),
+# =============================================================================
                 dbc.Button(
                     "Contact Us",
                     id="contact_button"
@@ -186,7 +232,8 @@ app.layout = dbc.Container(
                     ),
                     id="contact_collapse",
                     is_open=False
-                ),
+                    ),
+                
             ])
         ]),
         html.Hr(),
@@ -248,7 +295,18 @@ def toggle_shape_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
-### Callback to make scale menu expand
+### Callback to make degrade menu expand
+@app.callback(
+    Output("degrade_collapse", "is_open"),
+    [Input("degrade_button", "n_clicks")],
+    [State("degrade_collapse", "is_open")]
+)
+def toggle_shape_collapse(n_clicks, is_open):
+    if n_clicks:
+        return not is_open
+    return is_open
+
+### Callback to make compare menu expand
 @app.callback(
     Output("compare_collapse", "is_open"),
     [Input("compare_button", "n_clicks")],
@@ -258,6 +316,19 @@ def toggle_shape_collapse(n_clicks, is_open):
     if n_clicks:
         return not is_open
     return is_open
+
+### Callback to make QA menu expand
+# =============================================================================
+# @app.callback(
+#     Output("QA_collapse", "is_open"),
+#     [Input("QA_button", "n_clicks")],
+#     [State("QA_collapse", "is_open")]
+# )
+# def toggle_shape_collapse(n_clicks, is_open):
+#     if n_clicks:
+#         return not is_open
+#     return is_open
+# =============================================================================
 
 ### Callback to make contact menu expand
 @app.callback(
@@ -277,11 +348,14 @@ def toggle_shape_collapse(n_clicks, is_open):
     Input(irradiance_slider, 'value'),
     Input(temperature_slider, 'value'),
     Input(string_input, 'value'),
+    Input(degradation_date_picker, 'start_date'),
+    Input(degradation_date_picker, 'end_date'),
+    Input(degradation_input,'value'),
     Input(compare_input,'data'),
 )
 
 
-def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string, data):
+def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string, start_date, end_date, input_degradation_rate, data):
     df = mod_db[mod_db['Model'].str.match(selected_mod)]
     df=df.iloc[0,:]
     
@@ -306,15 +380,30 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         resistance_shunt=Rsh.flatten(),
         nNsVth=nNsVth.flatten(),
         ivcurve_pnts=101,
-        method='lambertw')                    
+        method='lambertw')
+
+    if start_date is not None and end_date is not None:
+        start_date_object = date.fromisoformat(start_date)
+        end_date_object = date.fromisoformat(end_date)   
+        degradation_days = (end_date_object - start_date_object).days
+        if degradation_days > 0:
+            degradation = 1-(input_degradation_rate/100 * degradation_days/365.25)
+        else:
+            degradation = 1
+    else:
+        degradation = 1
 
     df = pd.DataFrame(curve_info['v'].transpose(), columns=['Voltage'])
-    df['Voltage'] = df['Voltage']*mods_per_string
-    df['Current'] = pd.DataFrame(curve_info['i'].transpose(), columns=['Current'])
+    df['Voltage'] *= mods_per_string 
+    df['Voltage'] *= math.sqrt(degradation)
+    df['Current'] = pd.DataFrame(curve_info['i'].transpose(), columns=['Current']) 
+    df['Current'] *= math.sqrt(degradation)
     df['Power'] = df['Voltage'] * df['Current']
     df_Vmp = pd.DataFrame(curve_info['v_mp'].transpose(), columns=['Vmp'])
-    df_Vmp *= mods_per_string
-    df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp'])
+    df_Vmp *= mods_per_string 
+    df_Vmp *= math.sqrt(degradation)
+    df_Imp = pd.DataFrame(curve_info['i_mp'].transpose(), columns=['Imp']) 
+    df_Imp *= math.sqrt(degradation)
    
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     
