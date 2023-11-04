@@ -66,8 +66,8 @@ dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'],
                         clearable=True)
 
 ###Scale things
-irradiance_slider = dcc.Slider(0,1200,5, value=1000, marks=None,tooltip={"placement":"bottom", "always_visible":True})
-temperature_slider = dcc.Slider(-25,70,1, value=25, marks=None,tooltip={"placement":"bottom", "always_visible":True})
+irradiance_input = dbc.Input(type="number", value=1000, min=0, max=1500, step=0.01)
+temperature_input = dbc.Input(type="number", value=25, min=-100, max=100, step=0.01)
 string_input = dbc.Input(type="number", value=1, min=1, max=50, step=1)
 
 ###Degrade things
@@ -82,10 +82,13 @@ degradation_input = dbc.Input(type="number", value=0.5, min=0, max=100, step=0.0
 df_compare = pd.DataFrame(columns=['Voltage', 'Current'], index=range(10))
 compare_input = dash_table.DataTable(
     id='compare-input',
-    columns = [{'name': col, 'id':col} for col in df_compare.columns],
-    data = df_compare.to_dict('records'),
+    columns=[{'name': col, 'id': col, 'type': 'numeric'} for col in df_compare.columns],
+    data=df_compare.to_dict('records'),
     editable=True,
-    )
+    style_table={'textAlign': 'center'},  # Center-align the entire table
+    style_cell={'textAlign': 'center'},   # Center-align cell contents
+    style_header={'textAlign': 'center'},  # Center-align header labels
+)
 
 app.layout = dbc.Container(
     [
@@ -113,16 +116,13 @@ app.layout = dbc.Container(
                                 html.H6("Model:"),
                                 dropdown_mod,
                                 html.Hr(),
-                                html.H6("Irradiance (W/m2)"),
-                                irradiance_slider,
-                                html.Hr(),
-                                html.H6("Temperature (°C)"),
-                                temperature_slider,
-                                html.Hr(),
-                                html.H6("Modules per String"),
-                                string_input
-                            ]
-                        )
+                                dbc.Row([  # Create a row for Irradiance, Temperature, and Modules per String
+                                         dbc.Col([html.H6("Irradiance (W/m2)"), irradiance_input], width=4),
+                                         dbc.Col([html.H6("Temperature (°C)"), temperature_input], width=4),
+                                         dbc.Col([html.H6("Modules per String"), string_input], width=4),
+                                         ]),
+                                ]
+                            )
                     ),
                     id="module_collapse",
                     is_open=False
@@ -323,8 +323,8 @@ def toggle_shape_collapse(n_clicks, is_open):
     Output("display", component_property='figure'),
     Input(dropdown_mod, 'value'),
     Input(dropdown_parameters, 'value'),
-    Input(irradiance_slider, 'value'),
-    Input(temperature_slider, 'value'),
+    Input(irradiance_input, 'value'),
+    Input(temperature_input, 'value'),
     Input(string_input, 'value'),
     Input(degradation_date_picker, 'start_date'),
     Input(degradation_date_picker, 'end_date'),
