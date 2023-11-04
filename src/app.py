@@ -17,43 +17,41 @@ import math
 app = Dash(__name__, external_stylesheets=[dbc.themes.MINTY], title="IVCurves.com")
 server = app.server
 
-app.index_string = """<!DOCTYPE html>
+meta_description = "PV solar IV curve database and analysis tool. Explore thousands of module performance data from LONGi, Trina, Jinko, Canadian Solar, and more."
+app.index_string = f"""
+<!DOCTYPE html>
 <html>
     <head>
+        <!-- Add the meta description -->
+        <meta name="description" content="{meta_description}">
         <!-- Global site tag (gtag.js) - Google Analytics -->
-      <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y8DJHVNDS6"></script>
-      <script>
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y8DJHVNDS6"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){{dataLayer.push(arguments);}}
+            gtag('js', new Date());
 
-          gtag('config', 'G-Y8DJHVNDS6');
+            gtag('config', 'G-Y8DJHVNDS6');
         </script>
-        {%metas%}
-        <title>{%title%}</title>
-        {%favicon%}
-        {%css%}
+        {{%metas%}}
+        <title>{{%title%}}</title>
+        {{%favicon%}}
+        {{%css%}}
     </head>
     <body>
-        {%app_entry%}
+        {{%app_entry%}}
         <footer>
-            {%config%}
-            {%scripts%}
-            {%renderer%}
+            {{%config%}}
+            {{%scripts%}}
+            {{%renderer%}}
         </footer>
     </body>
-</html>"""
-
-# =============================================================================
-# dash.register_page(__name__,
-#                    title='IVCurves.com',
-#                    description='PV solar IV curve database and analysis tool. Access and analyze nearly 17,000 modules from 200 manufacturers.'
-#                    )
-# =============================================================================
+</html>
+"""
 
 ###Module things
 mod_db = pd.read_csv('module_db.csv')
-dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),value='First Solar Inc.',
+dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),value='LONGi Green Energy Technology Co. Ltd.',
                         clearable=False)
 dropdown_mod = dcc.Dropdown(options=[])
 
