@@ -53,7 +53,7 @@ app.index_string = """<!DOCTYPE html>
 
 ###Module things
 mod_db = pd.read_csv('module_db.csv')
-dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),
+dropdown_manuf = dcc.Dropdown(options=mod_db.loc[:,'Manufacturer'].unique(),value='First Solar Inc.',
                         clearable=False)
 dropdown_mod = dcc.Dropdown(options=[])
 
