@@ -2,6 +2,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import dash
 from dash import Dash, dcc, Output, Input, State, dash_table, callback
+from dash_table.Format import Format
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
@@ -116,7 +117,10 @@ app.layout = dbc.Container(
                             dbc.Row([  # Create DataTable for Pmp, Isc, Voc, Imp, Vmp
                                 dbc.Col(dash_table.DataTable(
                                     id='module-parameters-table',
-                                    columns=[{'name': col, 'id': col, 'type': 'numeric'} for col in ["Pmp", "Isc", "Voc", "Imp", "Vmp"]],
+                                    columns=[
+                                        {'name': col, 'id': col, 'type': 'numeric', 'format': Format(precision=4)}  # Format values to 2 decimal points
+                                        for col in ["Pmp", "Isc", "Voc", "Imp", "Vmp"]
+                                    ],
                                     data=[{}],
                                     style_table={'textAlign': 'center'},
                                     style_cell={'textAlign': 'center'},
