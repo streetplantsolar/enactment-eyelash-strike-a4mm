@@ -149,7 +149,6 @@ effective_irradiance = 1000
 # Parameter dropdown
 dropdown_parameters = dcc.Dropdown(options=['Pmp', 'Power Curve'], clearable=True)
 
-
 # Scale inputs
 irradiance_input = dbc.Input(type="number", value=1000, min=0, max=1500, step=0.01)
 temperature_input = dbc.Input(type="number", value=25, min=-100, max=100, step=0.01)
@@ -162,12 +161,12 @@ degradation_date_picker = dcc.DatePickerRange(id='degradation-date-range',
                                              end_date=date(today.year, today.month, today.day))
 degradation_input = dbc.Input(type="number", value=0.5, min=0, max=100, step=0.01)
 
-# Compare data input
-df_compare = pd.DataFrame(columns=['Voltage', 'Current'], index=range(10))
-compare_input = dash_table.DataTable(
-    id='compare-input',
-    columns=[{'name': col, 'id': col, 'type': 'numeric'} for col in df_compare.columns],
-    data=df_compare.to_dict('records'),
+# IMPORT DATA INPUT
+df_import = pd.DataFrame(columns=['Voltage', 'Current'], index=range(10))
+import_input = dash_table.DataTable(
+    id='import-input',
+    columns=[{'name': col, 'id': col, 'type': 'numeric'} for col in df_import.columns],
+    data=df_import.to_dict('records'),
     editable=True,
     style_table={'textAlign': 'center'},
     style_cell={'textAlign': 'center'},
@@ -218,6 +217,7 @@ home_layout = dbc.Container(
                     is_open=False
                 ),
                 html.Hr(),
+                # ADD PARAMETERS
                 dbc.Button("Add parameters", id="parameter_button"),
                 dbc.Collapse(
                     dbc.Card(
@@ -227,6 +227,7 @@ home_layout = dbc.Container(
                     is_open=False
                 ),
                 html.Hr(),
+                # DEGRADE
                 dbc.Button("Degrade", id="degrade_button"),
                 dbc.Collapse(
                     dbc.Card(
@@ -242,12 +243,34 @@ home_layout = dbc.Container(
                     is_open=False
                 ),
                 html.Hr(),
-                dbc.Button("Plot your data", id="compare_button"),
+                # IMPORT YOUR DATA
+                dbc.Button("Import your data", id="import_button"),
                 dbc.Collapse(
                     dbc.Card(
-                        dbc.CardBody([compare_input]),
+                        dbc.CardBody([import_input]),
                     ),
-                    id="compare_collapse",
+                    id="import_collapse",
+                    is_open=False
+                ),
+                html.Hr(),
+                # ANALYZE YOUR DATA
+                dbc.Button("Analyze your data", id="analyze_button"),
+                dbc.Collapse(
+                    dbc.Card(
+                        dbc.CardBody([
+                            dbc.Row([  # Create DataTable for Pmp, Isc, Voc, Imp, Vmp
+                                dbc.Col(dash_table.DataTable(
+                                    id='my-parameters-table',
+                                    columns=[{'name': col, 'id': col, 'type': 'numeric'} for col in ["Pmp", "Isc", "Voc", "Imp", "Vmp"]],
+                                    data=[{}],
+                                    style_table={'textAlign': 'center'},
+                                    style_cell={'textAlign': 'center'},
+                                    style_header={'textAlign': 'center'},
+                                ), width=12),
+                            ]),
+                            ]),
+                    ),
+                    id="analyze_collapse",
                     is_open=False
                 ),
             ], width=3),
@@ -283,7 +306,7 @@ def toggle_collapse(n_clicks, is_open):
         return not is_open
     return is_open
 
-menus = ["module", "parameter", "degrade", "compare"]
+menus = ["module", "parameter", "degrade", "import", "analyze"]
 for menu in menus:
     app.callback(
         Output(f"{menu}_collapse", "is_open"),
@@ -327,6 +350,29 @@ def update_module_parameters(selected_mod):
     return [{}]
 
 @app.callback(
+    Output('my-parameters-table', 'data'),
+    Input(import_input, 'data')
+)
+def update_my_parameters(data):
+    if data:
+        df_import = pd.DataFrame.from_dict(data)
+        df_import['Power'] = df_import['Current'] * df_import['Voltage']
+
+        if not df_import.empty:
+            pmp = round(df_import['Power'].max(), 2)
+            isc = round(df_import['Current'].max(), 2)
+            voc = round(df_import['Voltage'].max(), 2)
+
+            # Find the row where 'Power' is equal to the maximum power (Pmp)
+            row_with_max_power = df_import[df_import['Power'] == df_import['Power'].max()]
+            imp = round(row_with_max_power['Current'].values[0], 2)  # Get the 'Current' value from that row
+            vmp = round(row_with_max_power['Voltage'].values[0], 2)
+            data = [{'Pmp': pmp, 'Isc': isc, 'Voc': voc, 'Imp': imp, 'Vmp': vmp}]
+            return data
+
+    return [{}]
+
+@app.callback(
     Output("display", component_property='figure'),
     [
         Input(dropdown_mod, 'value'),
@@ -337,7 +383,7 @@ def update_module_parameters(selected_mod):
         Input(degradation_date_picker, 'start_date'),
         Input(degradation_date_picker, 'end_date'),
         Input(degradation_input, 'value'),
-        Input(compare_input, 'data'),
+        Input(import_input, 'data'),
     ]
 )
 
@@ -433,12 +479,12 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         )
         fig.update_yaxes(title_text="Power (W)", secondary_y=True)
 
-    df_compare = pd.DataFrame.from_dict(data)
+    df_import = pd.DataFrame.from_dict(data)
 
     fig.add_trace(
         go.Scatter(
-            x=df_compare['Voltage'],
-            y=df_compare['Current'],
+            x=df_import['Voltage'],
+            y=df_import['Current'],
             name="Your module",
             mode="lines",
             line_color="#ffce67",
