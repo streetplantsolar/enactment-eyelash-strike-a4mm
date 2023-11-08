@@ -20,9 +20,9 @@ server = app.server
 # Set up the app's navigation bar with links to the "Home" and "FAQ" pages
 navbar = dbc.NavbarSimple(
     children=[
-        dbc.NavItem(dbc.NavLink("Home", href="/home")),
-        dbc.NavItem(dbc.NavLink("FAQ", href="/faq")),
-        dbc.NavItem(dbc.NavLink("Contact", href="/contact"))
+        dbc.NavItem(dbc.NavLink("Home", href="/home/")),
+        dbc.NavItem(dbc.NavLink("FAQ", href="/faq/")),
+        dbc.NavItem(dbc.NavLink("Contact", href="/contact/"))
     ],
     brand=html.Div("IVCurves.com", style={"margin-left": "15px"}),  # Adjust margin as needed
     brand_href="/home",
