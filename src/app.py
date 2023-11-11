@@ -330,24 +330,6 @@ def update_dropdown_mod(selected_manuf):
 def update_mod_value(mods_of_manuf):
     return mods_of_manuf[0]['value']
 
-@app.callback(
-    Output('module-parameters-table', 'data'),
-    Input(dropdown_mod, 'value')
-)
-def update_module_parameters(selected_mod):
-    if selected_mod:
-        module_data = mod_db[mod_db['Model'] == selected_mod]
-
-        if not module_data.empty:
-            pmp = module_data.iloc[0]['STC']
-            isc = module_data.iloc[0]['I_sc_ref']
-            voc = module_data.iloc[0]['V_oc_ref']
-            imp = module_data.iloc[0]['I_mp_ref']
-            vmp = module_data.iloc[0]['V_mp_ref']
-            data = [{'Pmp': pmp, 'Isc': isc, 'Voc': voc, 'Imp': imp, 'Vmp': vmp}]
-            return data
-
-    return [{}]
 
 @app.callback(
     Output('my-parameters-table', 'data'),
@@ -373,7 +355,10 @@ def update_my_parameters(data):
     return [{}]
 
 @app.callback(
+    [
     Output("display", component_property='figure'),
+    Output('module-parameters-table', 'data')
+    ],
     [
         Input(dropdown_mod, 'value'),
         Input(dropdown_parameters, 'value'),
@@ -387,7 +372,7 @@ def update_my_parameters(data):
     ]
 )
 
-def update_graph(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string, start_date, end_date, input_degradation_rate, data):
+def create_model_IV(selected_mod, selected_option, selected_irradiance, selected_temperature, mods_per_string, start_date, end_date, input_degradation_rate, data):
     selected_module_data = mod_db[mod_db['Model'].str.match(selected_mod)].iloc[0, :]
 
     cec_params = {
@@ -411,7 +396,7 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         resistance_series=Rs,
         resistance_shunt=Rsh.flatten(),
         nNsVth=nNsVth.flatten(),
-        ivcurve_pnts=101,
+        ivcurve_pnts=150,
         method='lambertw'
     )
 
@@ -493,7 +478,17 @@ def update_graph(selected_mod, selected_option, selected_irradiance, selected_te
         secondary_y=False
     )
 
-    return fig
+    pmp = round(df_curve['Power'].max(), 2)
+    isc = round(df_curve['Current'].max(), 2)
+    voc = round(df_curve['Voltage'].max(), 2)
+
+    # Find the row where 'Power' is equal to the maximum power (Pmp)
+    df_mpp = df_curve[df_curve['Power'] == df_curve['Power'].max()]
+    imp = round(df_mpp['Current'].values[0], 2)  # Get the 'Current' value from that row
+    vmp = round(df_mpp['Voltage'].values[0], 2)
+    data = [{'Pmp': pmp, 'Isc': isc, 'Voc': voc, 'Imp': imp, 'Vmp': vmp}]
+
+    return fig, data
 
 if __name__=='__main__':
     app.run_server(port=8053, debug=False)
